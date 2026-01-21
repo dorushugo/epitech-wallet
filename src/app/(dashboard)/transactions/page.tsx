@@ -35,6 +35,11 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [showSendModal, setShowSendModal] = useState(action === 'send')
+  const [filters, setFilters] = useState({
+    walletId: searchParams.get('walletId') || '',
+    type: searchParams.get('type') || '',
+    status: searchParams.get('status') || '',
+  })
   const [sendForm, setSendForm] = useState({
     sourceWalletId: '',
     destinationEmail: '',
@@ -47,13 +52,19 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [filters])
 
   const fetchData = async () => {
     try {
+      const queryParams = new URLSearchParams()
+      queryParams.set('limit', '50')
+      if (filters.walletId) queryParams.set('walletId', filters.walletId)
+      if (filters.type) queryParams.set('type', filters.type)
+      if (filters.status) queryParams.set('status', filters.status)
+
       const [walletsRes, txRes] = await Promise.all([
         fetch('/api/wallets'),
-        fetch('/api/transactions?limit=50'),
+        fetch(`/api/transactions?${queryParams.toString()}`),
       ])
 
       const walletsData = await walletsRes.json()
@@ -143,6 +154,62 @@ export default function TransactionsPage() {
         >
           Nouvelle transaction
         </button>
+      </div>
+
+      {/* Filtres */}
+      <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Wallet
+            </label>
+            <select
+              value={filters.walletId}
+              onChange={(e) => setFilters({ ...filters, walletId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tous les wallets</option>
+              {wallets.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tous les types</option>
+              <option value="DEPOSIT">Dépôt</option>
+              <option value="WITHDRAWAL">Retrait</option>
+              <option value="TRANSFER">Transfert</option>
+              <option value="INTER_WALLET">Inter-Wallet</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Statut
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="SUCCESS">Succès</option>
+              <option value="PENDING">En attente</option>
+              <option value="PROCESSING">En traitement</option>
+              <option value="FAILED">Échoué</option>
+              <option value="BLOCKED">Bloqué</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Transactions Table */}

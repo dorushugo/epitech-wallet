@@ -22,10 +22,17 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const status = searchParams.get('status') as TransactionStatus | null
     const type = searchParams.get('type')
+    const walletId = searchParams.get('walletId')
 
     const where: Record<string, unknown> = { userId: user.id }
     if (status) where.status = status
     if (type) where.type = type
+    if (walletId) {
+      where.OR = [
+        { sourceWalletId: walletId },
+        { destinationWalletId: walletId },
+      ]
+    }
 
     const [transactions, total] = await Promise.all([
       prisma.transaction.findMany({
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
     
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0].message },
+        { success: false, error: validation.error.issues[0].message },
         { status: 400 }
       )
     }

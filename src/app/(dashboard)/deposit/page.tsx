@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Wallet {
   id: string
@@ -15,6 +15,7 @@ const PREDEFINED_AMOUNTS = [5, 10, 25, 50, 100]
 
 export default function DepositPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedWalletId, setSelectedWalletId] = useState('')
@@ -26,6 +27,16 @@ export default function DepositPage() {
   useEffect(() => {
     fetchWallets()
   }, [])
+
+  useEffect(() => {
+    const walletIdParam = searchParams.get('walletId')
+    if (walletIdParam && wallets.length > 0) {
+      const walletExists = wallets.find((w) => w.id === walletIdParam)
+      if (walletExists) {
+        setSelectedWalletId(walletIdParam)
+      }
+    }
+  }, [searchParams, wallets])
 
   const fetchWallets = async () => {
     try {

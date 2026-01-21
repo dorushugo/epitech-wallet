@@ -9,10 +9,11 @@ Wallet avec protocole inter-wallets et détection de fraude.
 - Hugo Dorus
 
 ## Stack Technique
-- **Frontend**: Next.js 16, React 19, Tailwind CSS
+- **Frontend**: Next.js 16, React 19, Tailwind CSS, Lucide React
 - **Backend**: Next.js API Routes (Bun runtime)
 - **Database**: PostgreSQL + Prisma ORM
 - **Auth**: JWT avec bcrypt
+- **Paiements**: Stripe (Checkout, Payouts)
 - **Inter-Wallet**: Protocole HMAC-SHA256
 
 ## Prérequis
@@ -50,12 +51,53 @@ L'app est accessible sur http://localhost:3000
 Copier `.env.example` vers `.env` et configurer:
 
 ```env
+# Base de données
 DATABASE_URL="postgresql://wallet_user:wallet_password@localhost:5432/wallet_db"
+
+# Authentification
 JWT_SECRET="votre-secret-jwt-min-32-chars"
+
+# Inter-Wallet
 INTERWALLET_HMAC_SECRET="secret-partage-avec-autres-groupes"
 INTERWALLET_SYSTEM_URL="http://localhost:3000"
 INTERWALLET_SYSTEM_NAME="Groupe6-Wallet"
+
+# Stripe (Paiements)
+STRIPE_SECRET_KEY="sk_test_..."  # Clé secrète depuis Stripe Dashboard
+STRIPE_PUBLISHABLE_KEY="pk_test_..."  # Clé publique depuis Stripe Dashboard
+STRIPE_WEBHOOK_SECRET="whsec_..."  # Secret webhook (CLI pour dev local ou Dashboard pour prod)
+STRIPE_CURRENCY="EUR"  # Devise par défaut
 ```
+
+### Configuration Stripe
+
+1. **Créer un compte Stripe** : https://stripe.com
+2. **Récupérer les clés API** :
+   - Dashboard Stripe → Developers → API keys
+   - Copier la clé secrète test (`sk_test_...`) et la clé publique test (`pk_test_...`)
+3. **Configurer les webhooks pour le développement local** :
+   ```bash
+   # Installer Stripe CLI (si pas déjà fait)
+   # macOS: brew install stripe/stripe-cli/stripe
+   
+   # Se connecter
+   stripe login
+   
+   # Démarrer l'écouteur local (dans un terminal séparé)
+   stripe listen --forward-to localhost:3000/api/payments/webhook
+   
+   # Copier le webhook secret affiché (whsec_...) dans STRIPE_WEBHOOK_SECRET
+   ```
+4. **Pour la production** :
+   - Dashboard Stripe → Developers → Webhooks
+   - Ajouter endpoint : `https://votre-domaine.com/api/payments/webhook`
+   - Événements à écouter :
+     - `checkout.session.completed`
+     - `payment_intent.succeeded`
+     - `payment_intent.payment_failed`
+     - `payout.paid`
+     - `payout.failed`
+   - Copier le webhook secret dans `STRIPE_WEBHOOK_SECRET`
 
 ## API Endpoints
 
@@ -76,8 +118,15 @@ INTERWALLET_SYSTEM_NAME="Groupe6-Wallet"
 ### Transactions
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/transactions` | Historique |
+| GET | `/api/transactions` | Historique (filtres: `?walletId=...&type=...&status=...`) |
 | POST | `/api/transactions` | Nouvelle transaction |
+
+### Paiements Stripe
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/payments/deposit` | Créer une session de dépôt Stripe |
+| POST | `/api/payments/webhook` | Webhook Stripe (événements paiements) |
+| POST | `/api/payments/cashout` | Initier un retrait (cashout) |
 
 ### Inter-Wallet Protocol
 | Method | Endpoint | Description |
@@ -154,9 +203,14 @@ Règles appliquées:
    - Tenter transaction de 10 000€
    - Vérifier statut BLOCKED + score visible
 
-5. **Historique**
-   - Afficher toutes les transactions
-   - Filtrer par statut/type
+5. **Paiements Stripe**
+   - Créditer un wallet via Stripe Checkout (cartes + PayPal)
+   - Retirer des fonds vers virement bancaire ou carte
+   - Tester avec les cartes de test Stripe (4242 4242 4242 4242)
+
+6. **Historique**
+   - Afficher toutes les transactions (dépôts, retraits, transferts)
+   - Filtrer par wallet, type, statut
 
 ## Structure du projet
 
@@ -166,12 +220,18 @@ epitech-wallet/
 │   ├── app/
 │   │   ├── (auth)/           # Pages login/register
 │   │   ├── (dashboard)/      # Pages dashboard
+│   │   │   ├── wallets/      # Liste wallets + détail par wallet
+│   │   │   ├── deposit/      # Page crédit wallet
+│   │   │   └── cashout/      # Page retrait wallet
 │   │   ├── api/              # API Routes
+│   │   │   └── payments/    # Routes Stripe
 │   │   └── layout.tsx
 │   ├── lib/
 │   │   ├── prisma.ts         # Client Prisma
 │   │   ├── auth.ts           # Utils auth/JWT
 │   │   ├── fraud.ts          # Détection fraude
+│   │   ├── stripe.ts         # Client Stripe
+│   │   ├── payments.ts       # Logique paiements
 │   │   └── interwallet.ts    # Protocole inter-wallet
 │   └── components/
 ├── prisma/

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Wallet {
   id: string
@@ -22,6 +22,7 @@ interface Payout {
 
 export default function CashoutPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [wallets, setWallets] = useState<Wallet[]>([])
   const [payouts, setPayouts] = useState<Payout[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,8 +37,23 @@ export default function CashoutPage() {
 
   useEffect(() => {
     fetchWallets()
-    fetchPayouts()
   }, [])
+
+  useEffect(() => {
+    if (selectedWalletId) {
+      fetchPayouts()
+    }
+  }, [selectedWalletId])
+
+  useEffect(() => {
+    const walletIdParam = searchParams.get('walletId')
+    if (walletIdParam && wallets.length > 0) {
+      const walletExists = wallets.find((w) => w.id === walletIdParam)
+      if (walletExists) {
+        setSelectedWalletId(walletIdParam)
+      }
+    }
+  }, [searchParams, wallets])
 
   const fetchWallets = async () => {
     try {
@@ -56,10 +72,25 @@ export default function CashoutPage() {
 
   const fetchPayouts = async () => {
     try {
-      const res = await fetch('/api/payments/history?type=cashout')
+      const queryParams = new URLSearchParams()
+      queryParams.set('type', 'WITHDRAWAL')
+      if (selectedWalletId) {
+        queryParams.set('walletId', selectedWalletId)
+      }
+      const res = await fetch(`/api/transactions?${queryParams.toString()}`)
       const data = await res.json()
       if (data.success) {
-        setPayouts(data.payments || [])
+        // Convertir les transactions en format payout pour l'affichage
+        const payoutsData = data.transactions.map((tx: any) => ({
+          id: tx.id,
+          amount: tx.amount,
+          currency: tx.currency,
+          method: 'bank_transfer', // Par défaut
+          status: tx.status === 'SUCCESS' ? 'paid' : tx.status === 'FAILED' ? 'failed' : 'pending',
+          destination: '****', // Masqué pour la sécurité
+          createdAt: tx.createdAt,
+        }))
+        setPayouts(payoutsData)
       }
     } catch (error) {
       console.error('Failed to fetch payouts:', error)

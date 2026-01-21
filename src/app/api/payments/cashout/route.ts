@@ -7,7 +7,7 @@ const cashoutSchema = z.object({
   walletId: z.string().min(1, 'Wallet requis'),
   amount: z.number().positive('Montant doit être positif').min(10, 'Minimum 10€'),
   method: z.enum(['bank_transfer', 'card'], {
-    errorMap: () => ({ message: 'Méthode doit être bank_transfer ou card' }),
+    message: 'Méthode doit être bank_transfer ou card',
   }),
   destination: z.string().min(1, 'Destination requise'),
   description: z.string().max(255).optional(),
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: validation.error.errors[0].message },
+        { success: false, error: validation.error.issues[0].message },
         { status: 400 }
       )
     }
