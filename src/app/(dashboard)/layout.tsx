@@ -67,6 +67,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/wallets', label: 'Wallets', icon: '💰' },
     { href: '/transactions', label: 'Transactions', icon: '📋' },
     { href: '/inter-wallet', label: 'Inter-Wallets', icon: '🌐' },
+    { href: '/deposit', label: 'Créditer', icon: '💳' },
+    { href: '/cashout', label: 'Retirer', icon: '🏦' },
   ]
 
   return (
