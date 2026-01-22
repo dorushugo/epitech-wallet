@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/auth'
 import { stripe, STRIPE_CURRENCY } from '@/lib/stripe'
+import { calculatePlatformFee } from '@/lib/platform-fee'
 import { z } from 'zod'
 
 const depositSchema = z.object({
@@ -50,7 +51,10 @@ export async function POST(request: NextRequest) {
 
     // Calculer les frais Stripe (1.5% + 0.25€ pour cartes EEE)
     const stripeFees = amount * 0.015 + 0.25
-    const totalAmount = amount + stripeFees
+    // Calculer le frais de plateforme (1%)
+    const platformFee = calculatePlatformFee(amount)
+    // Montant total à payer par l'utilisateur
+    const totalAmount = amount + stripeFees + platformFee
 
     // Convertir le montant total en centimes pour Stripe (EUR)
     const totalAmountInCents = Math.round(totalAmount * 100)
@@ -86,8 +90,9 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         walletId: wallet.id,
         walletName: wallet.name,
-        amount: amount.toString(), // Montant net à créditer sur le wallet (sans les frais)
-        fees: stripeFees.toFixed(2),
+        amount: amount.toString(), // Montant à créditer sur le wallet (montant complet)
+        stripeFees: stripeFees.toFixed(2),
+        platformFee: platformFee.toFixed(2),
         totalAmount: totalAmount.toFixed(2),
       },
     })

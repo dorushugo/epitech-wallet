@@ -121,6 +121,8 @@ STRIPE_CURRENCY="EUR"  # Devise par défaut
 | GET | `/api/transactions` | Historique (filtres: `?walletId=...&type=...&status=...`) |
 | POST | `/api/transactions` | Nouvelle transaction |
 
+**Note** : Toutes les transactions incluent un champ `platformFee` indiquant la marge de 1% prélevée.
+
 ### Paiements Stripe
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -186,6 +188,54 @@ Règles appliquées:
 - Total journalier > 5 000€ → +35 points
 - Compte < 7 jours avec montant élevé → +30 points
 
+## Marge de Plateforme
+
+Le système prélève une **marge de 1%** sur toutes les transactions pour financer le service.
+
+### Application de la marge
+
+La marge est appliquée différemment selon le type de transaction :
+
+#### Dépôts (DEPOSIT)
+- Montant reçu via Stripe : **100€**
+- Marge prélevée : **1€** (1%)
+- Montant crédité au wallet utilisateur : **99€**
+- Marge accumulée dans le wallet système
+
+#### Retraits (WITHDRAWAL)
+- Montant demandé par l'utilisateur : **100€**
+- Marge prélevée : **1€** (1%)
+- Montant total débité du wallet : **101€**
+- Montant envoyé à l'utilisateur : **100€** (montant net)
+- Marge accumulée dans le wallet système
+
+#### Transferts intrawallet (TRANSFER)
+- Montant transféré : **100€**
+- Marge prélevée : **1€** (1%)
+- Wallet source débité : **101€**
+- Wallet destination crédité : **100€** (montant net)
+- Marge accumulée dans le wallet système
+
+#### Transferts inter-wallet sortants (INTER_WALLET - sortant)
+- Montant envoyé : **100€**
+- Marge prélevée : **1€** (1%)
+- Wallet source débité : **101€**
+- Montant envoyé au système externe : **100€** (montant net)
+- Marge accumulée dans le wallet système
+
+#### Transferts inter-wallet entrants (INTER_WALLET - entrant)
+- Montant reçu : **100€**
+- Marge prélevée : **1€** (1%)
+- Wallet destination crédité : **99€** (montant net)
+- Marge accumulée dans le wallet système
+
+### Stockage et suivi
+
+- La marge est stockée dans le champ `platformFee` de chaque transaction
+- Toutes les marges sont accumulées dans un **wallet système** automatiquement créé
+- Le wallet système est identifié par l'email `platform@wallet.system`
+- La marge est visible dans les réponses API via le champ `platformFee` des transactions
+
 ## Scénarios de démonstration
 
 1. **Création d'utilisateurs**
@@ -232,7 +282,8 @@ epitech-wallet/
 │   │   ├── fraud.ts          # Détection fraude
 │   │   ├── stripe.ts         # Client Stripe
 │   │   ├── payments.ts       # Logique paiements
-│   │   └── interwallet.ts    # Protocole inter-wallet
+│   │   ├── interwallet.ts    # Protocole inter-wallet
+│   │   └── platform-fee.ts   # Calcul et gestion marge plateforme
 │   └── components/
 ├── prisma/
 │   └── schema.prisma         # Schéma BDD

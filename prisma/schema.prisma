@@ -75,6 +75,7 @@ model Transaction {
   destinationWalletId String?
   
   amount              Decimal           @db.Decimal(15, 2)
+  platformFee         Decimal?          @db.Decimal(15, 2) // Marge de 1% prélevée par la plateforme
   currency            String            @default("EUR")
   type                TransactionType
   status              TransactionStatus @default(PENDING)

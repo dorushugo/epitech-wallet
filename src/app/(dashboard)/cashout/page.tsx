@@ -106,6 +106,11 @@ export default function CashoutPage() {
     return 1.0
   }
 
+  const calculatePlatformFee = (amount: number): number => {
+    // Marge de plateforme: 1%
+    return Math.round(amount * 0.01 * 100) / 100
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -132,8 +137,11 @@ export default function CashoutPage() {
       return
     }
 
-    if (cashoutAmount > selectedWallet.balance) {
-      setError('Solde insuffisant')
+    const platformFee = calculatePlatformFee(cashoutAmount)
+    const totalDebit = cashoutAmount + platformFee
+
+    if (totalDebit > selectedWallet.balance) {
+      setError(`Solde insuffisant (montant + frais de plateforme: ${formatCurrency(totalDebit)})`)
       setProcessing(false)
       return
     }
@@ -230,7 +238,9 @@ export default function CashoutPage() {
   const selectedWallet = wallets.find((w) => w.id === selectedWalletId)
   const cashoutAmount = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0
   const fees = cashoutAmount > 0 ? calculateFees(cashoutAmount) : 0
-  const netAmount = cashoutAmount - fees
+  const platformFee = cashoutAmount > 0 ? calculatePlatformFee(cashoutAmount) : 0
+  const totalDebit = cashoutAmount + platformFee // Montant total débité du wallet
+  const netAmount = cashoutAmount - fees // Montant reçu par l'utilisateur (après frais Stripe)
 
   if (loading) {
     return (
@@ -416,14 +426,19 @@ export default function CashoutPage() {
                   <span className="font-medium">{formatCurrency(cashoutAmount)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Frais</span>
+                  <span className="text-gray-600">Frais de plateforme (1%)</span>
+                  <span className="font-medium">{formatCurrency(platformFee)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Frais de traitement</span>
                   <span className="font-medium">{formatCurrency(fees)}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-2 flex justify-between">
-                  <span className="font-semibold text-gray-900">Vous recevrez</span>
-                  <span className="font-bold text-lg text-gray-900">
-                    {formatCurrency(netAmount)}
-                  </span>
+                  <span className="font-semibold text-gray-900">Total débité</span>
+                  <span className="font-bold text-lg text-gray-900">{formatCurrency(totalDebit)}</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  Vous recevrez {formatCurrency(netAmount)}
                 </div>
               </div>
             )}
@@ -440,7 +455,7 @@ export default function CashoutPage() {
                 cashoutAmount < 10 ||
                 !destination ||
                 (method === 'bank_transfer' && !accountName) ||
-                (selectedWallet && cashoutAmount > selectedWallet.balance)
+                (selectedWallet && totalDebit > selectedWallet.balance)
               }
               className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >

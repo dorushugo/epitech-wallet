@@ -58,6 +58,11 @@ export default function DepositPage() {
     return amount * 0.015 + 0.25
   }
 
+  const calculatePlatformFee = (amount: number): number => {
+    // Marge de plateforme: 1%
+    return Math.round(amount * 0.01 * 100) / 100
+  }
+
   const handleAmountSelect = (selectedAmount: number) => {
     setAmount(selectedAmount)
     setIsCustomAmount(false)
@@ -139,7 +144,8 @@ export default function DepositPage() {
   const selectedWallet = wallets.find((w) => w.id === selectedWalletId)
   const depositAmount = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0
   const fees = depositAmount > 0 ? calculateFees(depositAmount) : 0
-  const total = depositAmount + fees
+  const platformFee = depositAmount > 0 ? calculatePlatformFee(depositAmount) : 0
+  const total = depositAmount + fees + platformFee // Montant total à payer (incluant frais Stripe + frais plateforme)
 
   if (loading) {
     return (
@@ -254,12 +260,16 @@ export default function DepositPage() {
           {depositAmount > 0 && (
             <div className="bg-gray-50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Montant</span>
+                <span className="text-gray-600">Montant à créditer</span>
                 <span className="font-medium">{formatCurrency(depositAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Frais Stripe (1.5% + 0.25€)</span>
                 <span className="font-medium">{formatCurrency(fees)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Frais de plateforme (1%)</span>
+                <span className="font-medium">{formatCurrency(platformFee)}</span>
               </div>
               <div className="border-t border-gray-200 pt-2 flex justify-between">
                 <span className="font-semibold text-gray-900">Total à payer</span>

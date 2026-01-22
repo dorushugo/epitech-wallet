@@ -1,6 +1,8 @@
 import { prisma } from './prisma'
 import { stripe, STRIPE_CURRENCY } from './stripe'
 import { checkFraud } from './fraud'
+import { calculatePlatformFee, getPlatformWallet } from './platform-fee'
+import { Decimal } from '@prisma/client/runtime/library'
 
 /**
  * Traite un dépôt réussi (appelé depuis le webhook)
@@ -42,14 +44,31 @@ export async function processDeposit(paymentIntentId: string): Promise<{
       return { success: false, error: 'Payment not succeeded in Stripe' }
     }
 
+    // Calculer le frais de plateforme (1%) - déjà inclus dans le paiement Stripe
+    const platformFeeNum = calculatePlatformFee(paymentIntent.amount)
+    const platformFee = new Decimal(platformFeeNum)
+
+    // Obtenir le wallet système
+    const platformWallet = await getPlatformWallet()
+
     // Traiter le dépôt atomiquement
     const result = await prisma.$transaction(async (tx) => {
-      // Créditer le wallet
+      // Créditer le wallet utilisateur avec le montant complet (l'utilisateur a déjà payé le frais)
       await tx.wallet.update({
         where: { id: paymentIntent.walletId },
         data: {
           balance: {
             increment: paymentIntent.amount,
+          },
+        },
+      })
+
+      // Créditer le wallet système avec le frais de plateforme
+      await tx.wallet.update({
+        where: { id: platformWallet.id },
+        data: {
+          balance: {
+            increment: platformFeeNum,
           },
         },
       })
@@ -60,6 +79,7 @@ export async function processDeposit(paymentIntentId: string): Promise<{
           userId: paymentIntent.userId,
           destinationWalletId: paymentIntent.walletId,
           amount: paymentIntent.amount,
+          platformFee: platformFee,
           currency: paymentIntent.currency,
           type: 'DEPOSIT',
           status: 'SUCCESS',
@@ -95,6 +115,12 @@ export async function processDeposit(paymentIntentId: string): Promise<{
             step: 'WALLET_CREDIT',
             status: 'SUCCESS',
             data: { walletId: paymentIntent.walletId, amount: Number(paymentIntent.amount) },
+          },
+          {
+            transactionId: transaction.id,
+            step: 'PLATFORM_FEE',
+            status: 'SUCCESS',
+            data: { platformWalletId: platformWallet.id, fee: platformFee },
           },
         ],
       })
@@ -142,9 +168,14 @@ export async function processCashout(params: {
       return { success: false, error: 'Wallet not found or not owned by user' }
     }
 
-    // Vérifier le solde
-    if (Number(wallet.balance) < amount) {
-      return { success: false, error: 'Solde insuffisant' }
+    // Calculer le frais de plateforme (1%)
+    const platformFeeNum = calculatePlatformFee(amount)
+    const platformFee = new Decimal(platformFeeNum)
+    const totalDebit = amount + platformFeeNum
+
+    // Vérifier le solde (montant demandé + marge)
+    if (Number(wallet.balance) < totalDebit) {
+      return { success: false, error: 'Solde insuffisant (montant + frais de plateforme)' }
     }
 
     // Appliquer la détection de fraude pour les montants importants
@@ -184,19 +215,32 @@ export async function processCashout(params: {
       // On continue quand même pour créer l'enregistrement en DB
     }
 
+    // Obtenir le wallet système
+    const platformWallet = await getPlatformWallet()
+
     // Traiter le cashout atomiquement
     const result = await prisma.$transaction(async (tx) => {
-      // Débiter le wallet
+      // Débiter le wallet utilisateur (montant demandé + marge)
       await tx.wallet.update({
         where: { id: walletId },
         data: {
           balance: {
-            decrement: amount,
+            decrement: totalDebit,
           },
         },
       })
 
-      // Créer le Payout en DB
+      // Créditer le wallet système avec le frais de plateforme
+      await tx.wallet.update({
+        where: { id: platformWallet.id },
+        data: {
+          balance: {
+            increment: platformFeeNum,
+          },
+        },
+      })
+
+      // Créer le Payout en DB (montant net envoyé à l'utilisateur)
       const payout = await tx.payout.create({
         data: {
           userId,
@@ -219,6 +263,7 @@ export async function processCashout(params: {
           userId,
           sourceWalletId: walletId,
           amount,
+          platformFee: platformFee,
           currency: wallet.currency,
           type: 'WITHDRAWAL',
           status: 'PENDING',
@@ -227,6 +272,7 @@ export async function processCashout(params: {
             payoutId: payout.id,
             method,
             destination: destination.substring(0, 4) + '****', // Masquer les infos sensibles
+            totalDebit: totalDebit,
           },
         },
       })
@@ -244,13 +290,19 @@ export async function processCashout(params: {
             transactionId: transaction.id,
             step: 'WALLET_DEBIT',
             status: 'SUCCESS',
-            data: { walletId, amount },
+            data: { walletId, amount: totalDebit },
+          },
+          {
+            transactionId: transaction.id,
+            step: 'PLATFORM_FEE',
+            status: 'SUCCESS',
+            data: { platformWalletId: platformWallet.id, fee: platformFee },
           },
           {
             transactionId: transaction.id,
             step: 'PAYOUT_CREATED',
             status: 'SUCCESS',
-            data: { payoutId: payout.id, method },
+            data: { payoutId: payout.id, method, netAmount: amount },
           },
         ],
       })
@@ -346,17 +398,42 @@ export async function processPayoutFailed(payoutId: string): Promise<{
       return { success: true } // Déjà traité
     }
 
+    // Récupérer la transaction pour obtenir la marge
+    const transaction = payout.transactionId
+      ? await prisma.transaction.findUnique({
+          where: { id: payout.transactionId },
+        })
+      : null
+
+    const platformFee = transaction?.platformFee ? Number(transaction.platformFee) : 0
+    const totalRefund = Number(payout.amount) + platformFee
+
+    // Obtenir le wallet système
+    const platformWallet = await getPlatformWallet()
+
     // Rembourser le wallet atomiquement
     await prisma.$transaction(async (tx) => {
-      // Rembourser le wallet
+      // Rembourser le wallet (montant + marge)
       await tx.wallet.update({
         where: { id: payout.walletId },
         data: {
           balance: {
-            increment: payout.amount,
+            increment: totalRefund,
           },
         },
       })
+
+      // Débiter le wallet système (remboursement de la marge)
+      if (platformFee > 0) {
+        await tx.wallet.update({
+          where: { id: platformWallet.id },
+          data: {
+            balance: {
+              decrement: platformFee,
+            },
+          },
+        })
+      }
 
       // Mettre à jour le payout
       await tx.payout.update({
@@ -377,7 +454,7 @@ export async function processPayoutFailed(payoutId: string): Promise<{
             transactionId: payout.transactionId,
             step: 'PAYOUT_FAILED',
             status: 'FAILED',
-            data: { payoutId, refunded: true },
+            data: { payoutId, refunded: true, totalRefund, platformFeeRefunded: platformFee },
           },
         })
       }

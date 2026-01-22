@@ -15,6 +15,7 @@ interface Transaction {
   type: string
   status: string
   amount: number
+  platformFee?: number | null
   currency: string
   description?: string
   fraudScore?: number
@@ -124,6 +125,11 @@ export default function TransactionsPage() {
 
   const formatCurrency = (amount: number, currency = 'EUR') => {
     return amount.toLocaleString('fr-FR', { style: 'currency', currency })
+  }
+
+  const calculatePlatformFee = (amount: number): number => {
+    // Marge de plateforme: 1%
+    return Math.round(amount * 0.01 * 100) / 100
   }
 
   const getStatusColor = (status: string) => {
@@ -348,6 +354,29 @@ export default function TransactionsPage() {
                   placeholder="Remboursement, cadeau..."
                 />
               </div>
+
+              {/* Résumé avec marge */}
+              {sendForm.amount && parseFloat(sendForm.amount) > 0 && (
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Montant envoyé</span>
+                    <span className="font-medium">{formatCurrency(parseFloat(sendForm.amount))}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Frais de plateforme (1%)</span>
+                    <span className="font-medium">{formatCurrency(calculatePlatformFee(parseFloat(sendForm.amount)))}</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 flex justify-between">
+                    <span className="font-semibold text-gray-900">Total débité</span>
+                    <span className="font-bold text-lg text-gray-900">
+                      {formatCurrency(parseFloat(sendForm.amount) + calculatePlatformFee(parseFloat(sendForm.amount)))}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    Le destinataire recevra {formatCurrency(parseFloat(sendForm.amount))}
+                  </div>
+                </div>
+              )}
 
               {sendError && (
                 <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg">
