@@ -53,6 +53,7 @@ export default function TransactionsPage() {
   const [convertedAmount, setConvertedAmount] = useState<number | null>(null)
   const [exchangeRate, setExchangeRate] = useState<number | null>(null)
   const [loadingConversion, setLoadingConversion] = useState(false)
+  const [isSameUser, setIsSameUser] = useState(false) // Indique si le wallet de destination appartient au même utilisateur
   const [sendLoading, setSendLoading] = useState(false)
   const [sendError, setSendError] = useState('')
   const [sendSuccess, setSendSuccess] = useState('')
@@ -97,29 +98,43 @@ export default function TransactionsPage() {
       if (!sendForm.destinationEmail || !sendForm.destinationEmail.includes('@')) {
         setDestinationWallets([])
         setSendForm((prev) => ({ ...prev, destinationWalletId: '' }))
+        setIsSameUser(false)
         return
       }
 
       setLoadingDestinationWallets(true)
       try {
-        const res = await fetch(`/api/wallets?email=${encodeURIComponent(sendForm.destinationEmail)}`)
-        const data = await res.json()
-        if (data.success) {
-          setDestinationWallets(data.wallets)
+        // Récupérer l'utilisateur courant pour vérifier si c'est le même
+        const [walletsRes, userRes] = await Promise.all([
+          fetch(`/api/wallets?email=${encodeURIComponent(sendForm.destinationEmail)}`),
+          fetch('/api/auth/me'),
+        ])
+        
+        const walletsData = await walletsRes.json()
+        const userData = await userRes.json()
+        
+        if (walletsData.success) {
+          setDestinationWallets(walletsData.wallets)
+          // Vérifier si c'est le même utilisateur
+          const isSame = userData.success && userData.user?.email === sendForm.destinationEmail
+          setIsSameUser(isSame)
+          
           // Si un seul wallet, le sélectionner automatiquement
-          if (data.wallets.length === 1) {
-            setSendForm((prev) => ({ ...prev, destinationWalletId: data.wallets[0].id }))
+          if (walletsData.wallets.length === 1) {
+            setSendForm((prev) => ({ ...prev, destinationWalletId: walletsData.wallets[0].id }))
           } else {
             setSendForm((prev) => ({ ...prev, destinationWalletId: '' }))
           }
         } else {
           setDestinationWallets([])
           setSendForm((prev) => ({ ...prev, destinationWalletId: '' }))
+          setIsSameUser(false)
         }
       } catch (error) {
         console.error('Failed to load destination wallets:', error)
         setDestinationWallets([])
         setSendForm((prev) => ({ ...prev, destinationWalletId: '' }))
+        setIsSameUser(false)
       } finally {
         setLoadingDestinationWallets(false)
       }
@@ -153,15 +168,13 @@ export default function TransactionsPage() {
       }
 
       // Le montant saisi est dans la devise de destination
-      // On doit le convertir vers la devise source si nécessaire
-      let amountToSend = parseFloat(sendForm.amount)
+      // Vérifier la conversion si nécessaire
       if (sourceWallet.currency !== destinationWallet.currency) {
         if (convertedAmount === null) {
           setSendError('Erreur de conversion, veuillez réessayer')
           setSendLoading(false)
           return
         }
-        amountToSend = convertedAmount
       }
 
       const res = await fetch('/api/transactions', {
@@ -569,16 +582,29 @@ export default function TransactionsPage() {
                         ) : null}
                       </>
                     )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Frais de plateforme (1%)</span>
-                      <span className="font-medium">
-                        {formatCurrency(calculatePlatformFee(amountToDebit), sourceWallet?.currency || 'EUR')}
-                      </span>
-                    </div>
+                    {!isSameUser && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Frais de plateforme (1%)</span>
+                        <span className="font-medium">
+                          {formatCurrency(calculatePlatformFee(amountToDebit), sourceWallet?.currency || 'EUR')}
+                        </span>
+                      </div>
+                    )}
+                    {isSameUser && (
+                      <div className="flex justify-between text-sm text-green-600">
+                        <span>Transfert entre vos wallets</span>
+                        <span className="font-medium">Aucun frais</span>
+                      </div>
+                    )}
                     <div className="border-t border-gray-200 pt-2 flex justify-between">
                       <span className="font-semibold text-gray-900">Total débité</span>
                       <span className="font-bold text-lg text-gray-900">
-                        {formatCurrency(amountToDebit + calculatePlatformFee(amountToDebit), sourceWallet?.currency || 'EUR')}
+                        {formatCurrency(
+                          isSameUser 
+                            ? amountToDebit 
+                            : amountToDebit + calculatePlatformFee(amountToDebit), 
+                          sourceWallet?.currency || 'EUR'
+                        )}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 mt-2">

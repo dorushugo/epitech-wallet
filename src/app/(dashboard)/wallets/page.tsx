@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Wallet {
@@ -24,15 +24,7 @@ export default function WalletsPage() {
     fetchWallets()
   }, [])
 
-  useEffect(() => {
-    if (wallets.length > 0) {
-      calculateTotalBalance()
-    } else {
-      setTotalBalanceInEUR(0)
-    }
-  }, [wallets])
-
-  const calculateTotalBalance = async () => {
+  const calculateTotalBalance = useCallback(async () => {
     try {
       // Convertir tous les soldes en EUR
       const conversions = await Promise.all(
@@ -65,7 +57,15 @@ export default function WalletsPage() {
         .reduce((sum, w) => sum + w.balance, 0)
       setTotalBalanceInEUR(total)
     }
-  }
+  }, [wallets])
+
+  useEffect(() => {
+    if (wallets.length > 0) {
+      calculateTotalBalance()
+    } else {
+      setTotalBalanceInEUR(0)
+    }
+  }, [wallets, calculateTotalBalance])
 
   const fetchWallets = async () => {
     try {

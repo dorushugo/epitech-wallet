@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Wallet {
@@ -30,36 +30,7 @@ export default function DashboardPage() {
   const [totalBalanceInEUR, setTotalBalanceInEUR] = useState<number | null>(null)
   const [loadingBalance, setLoadingBalance] = useState(false)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  useEffect(() => {
-    if (wallets.length > 0) {
-      calculateTotalBalance()
-    }
-  }, [wallets])
-
-  const fetchData = async () => {
-    try {
-      const [walletsRes, txRes] = await Promise.all([
-        fetch('/api/wallets'),
-        fetch('/api/transactions?limit=5'),
-      ])
-
-      const walletsData = await walletsRes.json()
-      const txData = await txRes.json()
-
-      if (walletsData.success) setWallets(walletsData.wallets)
-      if (txData.success) setTransactions(txData.transactions)
-    } catch (error) {
-      console.error('Failed to fetch data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const calculateTotalBalance = async () => {
+  const calculateTotalBalance = useCallback(async () => {
     setLoadingBalance(true)
     try {
       // Convertir tous les soldes en EUR
@@ -94,6 +65,35 @@ export default function DashboardPage() {
       setTotalBalanceInEUR(total)
     } finally {
       setLoadingBalance(false)
+    }
+  }, [wallets])
+
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  useEffect(() => {
+    if (wallets.length > 0) {
+      calculateTotalBalance()
+    }
+  }, [wallets, calculateTotalBalance])
+
+  const fetchData = async () => {
+    try {
+      const [walletsRes, txRes] = await Promise.all([
+        fetch('/api/wallets'),
+        fetch('/api/transactions?limit=5'),
+      ])
+
+      const walletsData = await walletsRes.json()
+      const txData = await txRes.json()
+
+      if (walletsData.success) setWallets(walletsData.wallets)
+      if (txData.success) setTransactions(txData.transactions)
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
     }
   }
 

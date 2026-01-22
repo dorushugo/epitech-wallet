@@ -67,15 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fetchUser()
   }, [fetchUser])
 
-  useEffect(() => {
-    if (wallets.length > 0) {
-      calculateTotalBalance()
-    } else {
-      setTotalBalanceInEUR(0)
-    }
-  }, [wallets])
-
-  const calculateTotalBalance = async () => {
+  const calculateTotalBalance = useCallback(async () => {
     try {
       // Convertir tous les soldes en EUR
       const conversions = await Promise.all(
@@ -108,7 +100,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .reduce((sum, w) => sum + w.balance, 0)
       setTotalBalanceInEUR(total)
     }
-  }
+  }, [wallets])
+
+  useEffect(() => {
+    if (wallets.length > 0) {
+      calculateTotalBalance()
+    } else {
+      setTotalBalanceInEUR(0)
+    }
+  }, [wallets, calculateTotalBalance])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

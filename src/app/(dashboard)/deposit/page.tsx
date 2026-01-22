@@ -53,7 +53,7 @@ export default function DepositPage() {
     }
   }
 
-  const calculateFees = (amount: number, currency: string = 'EUR'): number => {
+  const calculateFees = (amount: number): number => {
     // Frais Stripe: 1.5% + 0.25€ pour cartes EEE
     // Note: Le 0.25€ fixe devrait être converti, mais pour simplifier l'affichage,
     // on l'affiche tel quel (la conversion réelle se fait côté serveur)
@@ -152,9 +152,7 @@ export default function DepositPage() {
   }
 
   const depositAmount = typeof amount === 'number' ? amount : parseFloat(amount as string) || 0
-  const selectedWallet = wallets.find((w) => w.id === selectedWalletId)
-  const walletCurrency = selectedWallet?.currency || 'EUR'
-  const fees = depositAmount > 0 ? calculateFees(depositAmount, walletCurrency) : 0
+  const fees = depositAmount > 0 ? calculateFees(depositAmount) : 0
   const platformFee = depositAmount > 0 ? calculatePlatformFee(depositAmount) : 0
   const total = depositAmount + fees + platformFee // Montant total à payer (incluant frais Stripe + frais plateforme)
 
