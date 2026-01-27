@@ -16,5 +16,45 @@ services:
       timeout: 5s
       retries: 5
 
+  web:
+    image: oven/bun:latest
+    container_name: wallet-web
+    working_dir: /app
+    volumes:
+      - ./:/app
+    env_file:
+      - .env
+    environment:
+      # Force l'app à utiliser le service postgres du compose
+      DATABASE_URL: postgresql://wallet_user:wallet_password@postgres:5432/wallet_db
+      # Build + run Next.js en mode production dans le container
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        bun install &&
+        bunx prisma generate &&
+        bunx prisma db push &&
+        bun run build &&
+        bun run start
+      "
+    ports:
+      - "3000:3000"
+
+  stripe-listener:
+    image: stripe/stripe-cli:latest
+    container_name: wallet-stripe-listener
+    environment:
+      # Utilise la clé Stripe de test définie dans .env
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY}
+    depends_on:
+      - web
+    command: >
+      listen
+      --api-key ${STRIPE_SECRET_KEY}
+      --forward-to web:3000/api/payments/webhook
+
 volumes:
   postgres_data:

@@ -345,5 +345,6 @@ bun run start            # Serveur production
 bun run seed             # Seed utilisateurs test
 bun run validate:openapi # Valider le schéma OpenAPI
 bun run docs             # Afficher l'URL de la documentation
+bun run test             # Lancer les tests
 bunx prisma studio       # Interface admin BDD
 ```
