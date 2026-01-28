@@ -147,6 +147,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { href: '/wallets', label: 'Wallets', icon: '💰' },
     { href: '/transactions', label: 'Transactions', icon: '📋' },
     { href: '/inter-wallet', label: 'Inter-Wallet', icon: '🌐', beta: true },
+    { href: '/analysis', label: 'Analyse IA', icon: '🤖', beta: true },
   ]
 
   return (

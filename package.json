@@ -19,8 +19,11 @@
     "docs": "echo 'Documentation API disponible sur http://localhost:3000/api-docs'"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.21",
+    "@ai-sdk/react": "^3.0.59",
     "@prisma/client": "5.22.0",
     "@stripe/stripe-js": "^8.6.3",
+    "ai": "^6.0.57",
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.3",
     "jsonwebtoken": "^9.0.3",
@@ -29,6 +32,8 @@
     "prisma": "5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "stripe": "^20.2.0",
     "zod": "^4.3.5"
   },

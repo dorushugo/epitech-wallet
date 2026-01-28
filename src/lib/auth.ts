@@ -61,3 +61,34 @@ export async function requireAuth() {
   }
   return user
 }
+
+// Pour les API routes avec NextRequest
+export async function getUserFromRequest(request: Request) {
+  const cookieHeader = request.headers.get('cookie')
+  if (!cookieHeader) return null
+
+  const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=')
+    acc[key] = value
+    return acc
+  }, {} as Record<string, string>)
+
+  const token = cookies['auth_token']
+  if (!token) return null
+
+  const payload = verifyToken(token)
+  if (!payload) return null
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      createdAt: true,
+    },
+  })
+
+  return user
+}
