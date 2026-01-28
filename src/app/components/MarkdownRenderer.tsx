@@ -1,6 +1,6 @@
 'use client'
 
-import Markdown from 'react-markdown'
+import Markdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ReactNode } from 'react'
 
@@ -10,37 +10,37 @@ interface MarkdownRendererProps {
 }
 
 // Composants personnalisés pour le rendu markdown
-const components = {
+const components: Components = {
   // Titres
-  h1: ({ children }: { children: ReactNode }) => (
+  h1: ({ children }) => (
     <h1 className="text-xl font-bold text-gray-900 mt-6 mb-3 pb-2 border-b border-gray-200 first:mt-0">
       {children}
     </h1>
   ),
-  h2: ({ children }: { children: ReactNode }) => (
+  h2: ({ children }) => (
     <h2 className="text-lg font-semibold text-gray-900 mt-5 mb-2 flex items-center gap-2">
       {children}
     </h2>
   ),
-  h3: ({ children }: { children: ReactNode }) => (
+  h3: ({ children }) => (
     <h3 className="text-base font-semibold text-gray-800 mt-4 mb-2 flex items-center gap-2">
       {children}
     </h3>
   ),
 
   // Paragraphes
-  p: ({ children }: { children: ReactNode }) => (
+  p: ({ children }) => (
     <p className="text-gray-700 leading-relaxed mb-3 last:mb-0">{children}</p>
   ),
 
   // Listes
-  ul: ({ children }: { children: ReactNode }) => (
+  ul: ({ children }) => (
     <ul className="space-y-2 my-3 ml-1">{children}</ul>
   ),
-  ol: ({ children }: { children: ReactNode }) => (
+  ol: ({ children }) => (
     <ol className="space-y-2 my-3 ml-1 list-decimal list-inside">{children}</ol>
   ),
-  li: ({ children }: { children: ReactNode }) => (
+  li: ({ children }) => (
     <li className="text-gray-700 flex items-start gap-2">
       <span className="text-blue-500 mt-1.5 flex-shrink-0">•</span>
       <span className="flex-1">{children}</span>
@@ -48,15 +48,15 @@ const components = {
   ),
 
   // Texte en gras et italique
-  strong: ({ children }: { children: ReactNode }) => (
+  strong: ({ children }) => (
     <strong className="font-semibold text-gray-900">{children}</strong>
   ),
-  em: ({ children }: { children: ReactNode }) => (
+  em: ({ children }) => (
     <em className="italic text-gray-700">{children}</em>
   ),
 
   // Code inline
-  code: ({ children, className }: { children: ReactNode; className?: string }) => {
+  code: ({ children, className }) => {
     const isBlock = className?.includes('language-')
     if (isBlock) {
       return (
@@ -73,40 +73,40 @@ const components = {
   },
 
   // Bloc de code
-  pre: ({ children }: { children: ReactNode }) => (
+  pre: ({ children }) => (
     <pre className="my-3">{children}</pre>
   ),
 
   // Blockquote
-  blockquote: ({ children }: { children: ReactNode }) => (
+  blockquote: ({ children }) => (
     <blockquote className="border-l-4 border-blue-500 bg-blue-50 pl-4 py-2 my-3 text-gray-700 italic rounded-r-lg">
       {children}
     </blockquote>
   ),
 
   // Tableau
-  table: ({ children }: { children: ReactNode }) => (
+  table: ({ children }) => (
     <div className="overflow-x-auto my-4">
       <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
         {children}
       </table>
     </div>
   ),
-  thead: ({ children }: { children: ReactNode }) => (
+  thead: ({ children }) => (
     <thead className="bg-gray-50">{children}</thead>
   ),
-  tbody: ({ children }: { children: ReactNode }) => (
+  tbody: ({ children }) => (
     <tbody className="divide-y divide-gray-200 bg-white">{children}</tbody>
   ),
-  tr: ({ children }: { children: ReactNode }) => (
+  tr: ({ children }) => (
     <tr className="hover:bg-gray-50 transition">{children}</tr>
   ),
-  th: ({ children }: { children: ReactNode }) => (
+  th: ({ children }) => (
     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
       {children}
     </th>
   ),
-  td: ({ children }: { children: ReactNode }) => (
+  td: ({ children }) => (
     <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{children}</td>
   ),
 
@@ -114,7 +114,7 @@ const components = {
   hr: () => <hr className="my-6 border-gray-200" />,
 
   // Liens
-  a: ({ href, children }: { href?: string; children: ReactNode }) => (
+  a: ({ href, children }) => (
     <a
       href={href}
       className="text-blue-600 hover:text-blue-800 underline underline-offset-2"

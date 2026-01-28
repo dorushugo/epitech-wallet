@@ -4,7 +4,6 @@ import { createOpenAI } from '@ai-sdk/openai'
 export const scaleway = createOpenAI({
   baseURL: process.env.SCALEWAY_BASE_URL || 'https://api.scaleway.ai/1b77b89d-64d5-4e7b-a68c-99bc7a7f1169/v1',
   apiKey: process.env.SCALEWAY_API_KEY || '',
-  compatibility: 'compatible',
 })
 
 // Modèle par défaut - utiliser .chat() pour forcer l'API chat/completions

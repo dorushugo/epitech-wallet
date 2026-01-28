@@ -131,8 +131,6 @@ ${highRiskTx.map((t) => `- ${t.type} de ${Number(t.amount).toFixed(2)} ${t.curre
       prompt: `Voici les données financières de ${user.firstName || 'cet utilisateur'}. Analyse-les et fournis-lui une analyse personnalisée en suivant la structure demandée (profil persona, bilan, conseils). Adresse-toi directement à lui/elle avec bienveillance.
 
 ${userContext}`,
-      maxTokens: 1500,
-      temperature: 0.7,
     })
 
     return result.toTextStreamResponse()
